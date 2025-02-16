@@ -1,0 +1,15 @@
+[Unit]
+Description=Docker Compose Nextcloud
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+WorkingDirectory=/path/to/your/docker-compose-directory
+EnvironmentFile=/path/to/your/.env/file
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+
+[Install]
+WantedBy=multi-user.target
