@@ -1,0 +1,89 @@
+services:
+  db:
+    image: mariadb:10.6
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      - MARIADB_RANDOM_ROOT_PASSWORD=yes
+      - MYSQL_PASSWORD=${SQLPASS}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+
+  redis:
+    image: redis:alpine
+    restart: always
+
+  app:
+    image: nextcloud:apache
+    restart: always
+    volumes:
+      - ${DATA}:/var/www/html/data
+      - nextcloud:/var/www/html
+    environment:
+      - VIRTUAL_HOST=${HOSTNAME}
+      - LETSENCRYPT_HOST=${HOSTNAME}
+      - LETSENCRYPT_EMAIL=${EMAIL}
+      - MYSQL_PASSWORD=${SQLPASS}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_HOST=db
+      - REDIS_HOST=redis
+    depends_on:
+      - db
+      - redis
+    networks:
+      - proxy-tier
+      - default
+
+  cron:
+    image: nextcloud:apache
+    restart: always
+    volumes:
+      - nextcloud:/var/www/html:z
+    entrypoint: /cron.sh
+    depends_on:
+      - db
+      - redis
+
+  proxy:
+    build: ./proxy
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    labels:
+      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: "true"
+    volumes:
+      - certs:/etc/nginx/certs:z,ro
+      - vhost.d:/etc/nginx/vhost.d:z
+      - html:/usr/share/nginx/html:z
+      - /var/run/docker.sock:/tmp/docker.sock:z,ro
+    networks:
+      - proxy-tier
+
+  letsencrypt-companion:
+    image: nginxproxy/acme-companion
+    restart: always
+    volumes:
+      - certs:/etc/nginx/certs:z
+      - acme:/etc/acme.sh:z
+      - vhost.d:/etc/nginx/vhost.d:z
+      - html:/usr/share/nginx/html:z
+      - /var/run/docker.sock:/var/run/docker.sock:z,ro
+    networks:
+      - proxy-tier
+    depends_on:
+      - proxy
+
+volumes:
+  nextcloud:
+  db:
+  certs:
+  acme:
+  vhost.d:
+  html:
+
+networks:
+  proxy-tier:
