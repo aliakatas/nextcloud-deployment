@@ -30,6 +30,12 @@ services:
       - MYSQL_USER=nextcloud
       - MYSQL_HOST=db
       - REDIS_HOST=redis
+      # According to this https://help.nextcloud.com/t/the-polling-url-does-not-start-with-https-despite-the-login-url-started-with-https/137576/10
+      # we need the following so that external apps can connect successfully.
+      - NEXTCLOUD_TRUSTED_DOMAINS=${HOSTNAME}
+      - OVERWRITECLIURL=https://${HOSTNAME}
+      - OVERWRITEPROTOCOL=https
+      - OVERWRITEHOST=${HOSTNAME}
     depends_on:
       - db
       - redis
